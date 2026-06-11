@@ -43,3 +43,22 @@ python app.py
 ```bash
 pytest test_parser.py -v
 ```
+
+## Deploying to the cloud (always-on)
+
+The bot uses Socket Mode, so it runs as a background worker — no public URL,
+port, or webhook configuration needed. Any host that runs a long-lived process
+works. Set `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN` as environment variables in
+the host's dashboard (do NOT commit `.env`).
+
+**Railway** (simplest):
+1. https://railway.app → New Project → Deploy from GitHub repo → pick this repo.
+2. Railway auto-detects the `Dockerfile` and builds it.
+3. In the service's *Variables* tab, add `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN`.
+4. Deploy. Logs should show `Bolt app is running!`.
+
+**Render**: New → Background Worker → connect this repo (uses the `Dockerfile`
+or `Procfile`), add the two env vars, deploy.
+
+**Fly.io / any Docker host**: `docker build -t meeting-dm-bot .` then run with
+`-e SLACK_BOT_TOKEN=... -e SLACK_APP_TOKEN=...`.
