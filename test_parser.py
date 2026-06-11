@@ -102,6 +102,36 @@ def test_hyphen_separator():
     assert items[0].assignee == "Dan Braga"
 
 
+# --- Multi-assignee ----------------------------------------------------------
+
+def test_ampersand_multi_assignee():
+    items = parse_action_items("Jon & Caleb: Coordinate email approvals through Dan before symposium (14-day window)")
+    assert len(items) == 2
+    assert items[0].assignee == "Jon"
+    assert items[1].assignee == "Caleb"
+    assert items[0].task == items[1].task == "Coordinate email approvals through Dan before symposium (14-day window)"
+
+
+def test_comma_and_multi_assignee():
+    items = parse_action_items("Jon, Caleb, and William — review the deck")
+    assert len(items) == 3
+    assert [i.assignee for i in items] == ["Jon", "Caleb", "William"]
+    assert all(i.task == "review the deck" for i in items)
+
+
+def test_ampersand_with_dash_separator():
+    items = parse_action_items("Kelly & Jon — finalize the white paper")
+    assert len(items) == 2
+    assert items[0].assignee == "Kelly"
+    assert items[1].assignee == "Jon"
+
+
+def test_single_name_not_split():
+    items = parse_action_items("Jon: send the recap")
+    assert len(items) == 1
+    assert items[0].assignee == "Jon"
+
+
 def test_looks_like_summary():
     assert looks_like_summary(NUMBERED_TRAILING)
     assert looks_like_summary(BULLETED_COLON)        # 3+ items, no header needed

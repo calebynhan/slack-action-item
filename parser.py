@@ -7,8 +7,11 @@ Supported line shapes (list markers like "1.", "a.", "-", "•" are stripped fir
     Devanshu: Schedule dedicated meeting                  (Name: task)
     <@U012ABCDEF> — follow up on X                        (Slack mention)
     Team: Complete Google Search Console connection       (group item)
+    Jon & Caleb: Coordinate email approvals               (multi-assignee)
+    Jon, Caleb, and William — review the deck             (multi-assignee)
 
 Dashes may be em/en dashes or a spaced hyphen.
+Multiple assignees separated by "&", "and", or "," each get their own item.
 """
 
 import re
@@ -38,8 +41,18 @@ _MENTION_RE = re.compile(r"<@([A-Z0-9]+)(?:\|[^>]*)?>")
 # or an @handle, or a Slack <@U...> mention.
 _NAME = r"\*?\s*(?:<@[A-Z0-9]+(?:\|[^>]*)?>|@[\w.\-]+|[A-Z][\w'’.\-]*(?:\s+[A-Z][\w'’.\-]*){0,3})"
 
+# Multi-assignee leading prefix: "Jon & Caleb:" or "Jon, Caleb, and William —"
+# Captured group 1 = raw names string, group 2 = task.
+_NAME_PART = r"(?:<@[A-Z0-9]+(?:\|[^>]*)?>|@[\w.\-]+|[A-Z][\w''.\-]*(?:\s+[A-Z][\w''.\-]*)?)"
+_NAME_SEP = r"(?:\s*(?:,\s*(?:and\s+)?|&\s*|\band\b\s*))"
+_MULTI_NAME = rf"(\*?\s*{_NAME_PART}(?:{_NAME_SEP}{_NAME_PART})+)"
+_MULTI_LEADING_RE = re.compile(rf"^{_MULTI_NAME}\s*(?:{_DASH}|:)\s*(.+)$")
+
 _LEADING_RE = re.compile(rf"^({_NAME})\s*(?:{_DASH}|:)\s*(.+)$")
 _TRAILING_RE = re.compile(rf"^(.+?)\s*{_DASH}\s*({_NAME})\s*$")
+
+# Splits "Jon & Caleb", "Jon, Caleb, and William", etc. into individual names.
+_NAME_SPLIT_RE = re.compile(r"\s*(?:,\s*(?:and\s+)?|&\s*|\band\b\s*)")
 
 _HEADER_RE = re.compile(r"^(action items?|next steps?|to[- ]?dos?|follow[- ]?ups?)\s*:?\s*$", re.I)
 
@@ -76,6 +89,11 @@ def _make_item(name: str, task: str) -> Optional[ActionItem]:
     return ActionItem(assignee=name, task=task, user_id=_mention_id(name))
 
 
+def _split_names(raw: str) -> List[str]:
+    """Split "Jon & Caleb" or "Jon, Caleb, and William" into individual names."""
+    return [n.strip() for n in _NAME_SPLIT_RE.split(raw.strip()) if n.strip()]
+
+
 def parse_action_items(text: str) -> List[ActionItem]:
     """Parse a message and return one ActionItem per assigned line."""
     items: List[ActionItem] = []
@@ -84,6 +102,19 @@ def parse_action_items(text: str) -> List[ActionItem]:
         if not line or _HEADER_RE.match(line):
             continue
 
+        # Multi-assignee leading: "Jon & Caleb: task" or "Jon, Caleb, and William — task"
+        m = _MULTI_LEADING_RE.match(line)
+        if m:
+            names_raw, task = m.group(1), m.group(2)
+            names = _split_names(names_raw)
+            if len(names) >= 2 and all(_is_plausible_name(_clean_name(n)) for n in names):
+                for name in names:
+                    item = _make_item(name, task)
+                    if item:
+                        items.append(item)
+                continue
+
+        # Single leading: "Jon: task" or "Jon — task"
         m = _LEADING_RE.match(line)
         if m and _is_plausible_name(_clean_name(m.group(1))):
             item = _make_item(m.group(1), m.group(2))
@@ -91,6 +122,7 @@ def parse_action_items(text: str) -> List[ActionItem]:
                 items.append(item)
                 continue
 
+        # Single trailing: "task — Kelly Anne Miller"
         m = _TRAILING_RE.match(line)
         if m and _is_plausible_name(_clean_name(m.group(2))):
             item = _make_item(m.group(2), m.group(1))
