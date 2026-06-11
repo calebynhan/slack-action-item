@@ -1,9 +1,8 @@
 """Slack bot that reads meeting summaries / action items and DMs each
 assignee their items (falling back to @-mentioning them in the thread).
 
-Triggers:
-  * someone @mentions the bot on (or in a thread under) a summary message
-  * any message that looks like an action-item summary (incl. bot posts)
+Trigger: someone @mentions the bot on a summary message, or in a thread
+under one — the bot does not listen to regular channel traffic.
 
 Run with Socket Mode: python app.py
 """
@@ -18,7 +17,7 @@ from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
-from parser import ActionItem, looks_like_summary, parse_action_items
+from parser import ActionItem, parse_action_items
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -146,21 +145,6 @@ def on_mention(event, client, context):
         channel=channel, thread_ts=ts,
         text="I couldn't find any action items here. Mention me on a summary "
              "with lines like `Task — Name`, `Name — task`, or `Name: task`.")
-
-
-@app.event("message")
-def on_message(event, client, context):
-    if event.get("subtype") in {"message_changed", "message_deleted", "channel_join"}:
-        return
-    if event.get("bot_id") and event.get("bot_id") == context.get("bot_id"):
-        return  # never react to our own posts
-    if event.get("user") == context.bot_user_id:
-        return
-    text = event.get("text", "")
-    if f"<@{context.bot_user_id}>" in text:
-        return  # handled by app_mention
-    if looks_like_summary(text):
-        process_summary(client, event["channel"], event["ts"], text)
 
 
 if __name__ == "__main__":

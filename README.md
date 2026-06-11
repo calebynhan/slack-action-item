@@ -6,10 +6,8 @@ be matched to a Slack user.
 
 ## How it works
 
-1. **Trigger** — either:
-   - a message that looks like an action-item summary is posted (including by
-     other bots, e.g. a meeting-notes integration), or
-   - someone @mentions this bot on a summary message (or in a thread under one).
+1. **Trigger** — someone @mentions this bot on a summary message, or in a
+   thread under one. The bot does not act on regular channel traffic.
 2. **Parse** — `parser.py` extracts `(assignee, task)` pairs. Supported line
    shapes (numbered, lettered, or bulleted lists all work):
    - `Upload final slides — Kelly Anne Miller` (task — Name)
@@ -28,7 +26,7 @@ be matched to a Slack user.
 1. Create a Slack app (https://api.slack.com/apps) and enable **Socket Mode**.
 2. Bot token scopes: `app_mentions:read`, `channels:history`, `chat:write`,
    `im:write`, `users:read`.
-3. Event subscriptions (bot events): `app_mention`, `message.channels`.
+3. Event subscriptions (bot events): `app_mention`.
 4. Install to the workspace, invite the bot to the summary channel.
 5. Configure and run:
 
